@@ -9,6 +9,7 @@ const { pixMethod } = require('./payment/pix');
 const { cartaoCreditoMethod } = require('./payment/cartaoCredito');
 const { createProviderA } = require('./infrastructure/providers/providerA');
 const { createProviderB } = require('./infrastructure/providers/providerB');
+const { withCircuitBreaker } = require('./infrastructure/providers/circuitBreaker');
 const { backendA, backendB } = require('./infrastructure/providers/fixtures');
 const { DebtController } = require('./infrastructure/http/controller');
 const { nullLogger } = require('./infrastructure/logger');
@@ -21,7 +22,12 @@ function buildApp({ logger = nullLogger, providers, referenceDate = REFERENCE_DA
   const registry = new InterestRegistry([ipvaPolicy, multaPolicy]);
 
   const consultar = new ConsultarDebitos({
-    providers: providers || [createProviderA(backendA), createProviderB(backendB)],
+    // Provedor A entra atrás de um circuit breaker: se ficar instável, falha
+    // rápido e o fallback cai no Provedor B. (B pode ser envolvido igual.)
+    providers: providers || [
+      withCircuitBreaker(createProviderA(backendA), { logger }),
+      createProviderB(backendB),
+    ],
     registry,
     referenceDate,
     logger,

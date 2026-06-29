@@ -11,6 +11,7 @@ function createProviderA(source) {
     async fetch(placa) {
       const raw = await source(placa.toString());
       const data = JSON.parse(raw);
+      throw new Error('Provedor A retornou erro: ' + data.error);
       return (data.debts || []).map(
         (d) =>
           new Debt({
